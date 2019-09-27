@@ -1,36 +1,66 @@
 #!/bin/bash
 
-# Temporal files
-TMP="/tmp/td.tmp.$$"
+declare -r TMP="/tmp/td.tmp.$$"
 trap "rm -f $TMP" EXIT
 
-# Input todo.txt file
-TODOTXT=TODO.txt
+function die {
+	echo 1>&2 "${0#*/}: $@"
+	exit 1
+}
 
-# Regexp:
+# Regexp: (TODO)
 #	1. substitute xxx[tag] => tag
 #	2. remove suffix if present
 #	3. remove prefix before first tag if present
 #	4. add SIGIL to $
-function index {
-	local SIGIL=$1
-	local SPC=' \t\v\f\n\r\d160'
-	local TAG="\(^\| \)\(${SIGIL}[^${SPC}]\+\( \|$\)\)"
+function index-by-tag {
+	local -r SIGIL=$1
+	local -r SPC=' \t\v\f\n\r\d160' L='\cA' R='\cB'
+	local -r TAG="\(${SIGIL}[^${SPC}]\+\)"
 
-	sed -e "s/.*${TAG}/\2/g"\
-	    -e "s/ .*$//"\
-	    -e "s/^[^${SIGIL}]\+//"\
+	sed -e "s/\(^\| \)${TAG}/${L}\2${R}/g"  \
+	    -e "s/[^${L}]\+${L}${TAG}${R}/\1/g" \
+	    -e "s/ .*$//"			\
+	    -e "s/^[^${SIGIL}]\+//"		\
 	    -e "s/$/${SIGIL}/"
 }
 
-# Index projects
-index '+' < ${TODOTXT} > ${TMP}
+# todo.txt file
+declare -r -a DIRECTORIES=(./ ~/ ~/.todo/)
+declare -r -a FILENAMES=(todo.txt TODO.txt TODO.TXT)
+for d in ${DIRECTORIES[@]}; do
+	for f in ${FILENAMES[@]}; do
+		if [[ -e $d$f ]]; then
+			TODOTXT=$d$f
+			break 2
+		fi
+	done
+done
+[[ -n $TODOTXT ]] || die "todo.txt file not found"
 
-# Index context
-#index '@' < ${TODOTXT} > ${TMP}
+# test sortings
 
-paste ${TMP} ${TODOTXT} \
-| sort --stable --field-separator=$'\t' --key=1,1 \
-| cut -f2
+function sort_by_tag {
+	LC_ALL=C sort --ignore-case --stable --field-separator=$'\t' --key=1,1
+}
+
+case $1 in
+	p|priority)
+		< ${TODOTXT} LC_ALL=C sort --stable
+		;;
+	t|project) # Index projects
+		index-by-tag '+' < ${TODOTXT} > ${TMP}
+		paste ${TMP} ${TODOTXT} \
+		| sort_by_tag 		\
+		| cut -f2
+		;;
+	c|context) # Index context
+		index-by-tag '@' < ${TODOTXT} > ${TMP}
+		paste ${TMP} ${TODOTXT} \
+		| sort_by_tag		\
+		| cut -f2
+		;;
+	*) ;;
+esac
 
 exit 0

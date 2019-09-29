@@ -60,7 +60,7 @@ case $1 in
 	p|priority)
 		< "${TODOTXT}" sort-by-priority
 		;;
-	t|project) # Index projects
+	t|tag) # Index projects
 		< "${TODOTXT}"		\
 		index-by-tag '+' 	\
 		| paste - "${TODOTXT}"	\
@@ -74,9 +74,12 @@ case $1 in
 		| sort-by-tag		\
 		| cut -f2
 		;;
-	s|show)
+	l|list)
 		# less -N "${TODOTXT}"
 		nl "${TODOTXT}"
+		;;
+	e|edit)
+		${EDITOR} ${TODOTXT}
 		;;
 	*) die 'Unkown option';;
 esac

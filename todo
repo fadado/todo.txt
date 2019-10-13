@@ -48,7 +48,9 @@ declare -r -a FILENAMES=(todo.txt TODO.txt TODO.TXT)
 for d in ${DIRECTORIES[@]}; do
 	for f in ${FILENAMES[@]}; do
 		if [[ -e $d$f ]]; then
-			TODOTXT=$d$f
+			DIRNAME=$d
+			FILENAME=$f
+			TODOTXT=${DIRNAME}${FILENAME}
 			break 2
 		fi
 	done
@@ -80,6 +82,9 @@ case $1 in
 		;;
 	e|edit)
 		${EDITOR} ${TODOTXT}
+		;;
+	pull)
+		cd ${DIRNAME}; git pull
 		;;
 	*) die 'Unkown option';;
 esac
